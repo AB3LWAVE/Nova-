@@ -1,0 +1,190 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated NOVA user profile and hybrid inference preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "routingMode": { "type": "string", "enum": ["automatic", "local-first", "cloud-first"] },
+        "privacyPreference": { "type": "string", "enum": ["standard", "local-first", "strict-local"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "routingMode", "privacyPreference", "createdAt", "updatedAt"]
+    },
+    "WorkspaceConfig": {
+      "title": "WorkspaceConfig",
+      "description": "User-customized or AI-generated workspace layout configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "isDefault": { "type": "boolean" },
+        "widgets": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "isDefault", "widgets", "createdAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "User-scoped Chat conversation metadata and summary.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "folder": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "pinned": { "type": "boolean" },
+        "archived": { "type": "boolean" },
+        "modelId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "personaId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "messageCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "folder", "pinned", "archived", "modelId", "personaId", "messageCount", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message stored inside a conversation subcollection.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "role": { "type": "string", "enum": ["user", "assistant", "system"] },
+        "content": { "type": "string", "minLength": 1, "maxLength": 32000 },
+        "modelId": { "type": "string", "maxLength": 80 },
+        "executionSource": { "type": "string", "enum": ["on_device", "in_cloud", "hybrid_fallback", "user_input"] },
+        "verificationStatus": { "type": "string", "enum": ["verified", "needs_review", "corrected", "pending", "none"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "role", "content", "executionSource", "verificationStatus", "createdAt"]
+    },
+    "Persona": {
+      "title": "Persona",
+      "description": "Custom user-created AI persona.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "instructions": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "preferredModelId": { "type": "string", "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "role", "instructions", "createdAt", "updatedAt"]
+    },
+    "QuizRecord": {
+      "title": "QuizRecord",
+      "description": "Saved Quiz Studio session and performance record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "quizType": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "difficulty": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "status": { "type": "string", "enum": ["draft", "in_progress", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "subject", "quizType", "difficulty", "totalQuestions", "status", "createdAt", "updatedAt"]
+    },
+    "CodeProject": {
+      "title": "CodeProject",
+      "description": "Saved Code Studio project or Visual-to-Code output.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "language": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "summary": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "language", "createdAt", "updatedAt"]
+    },
+    "PlanRecord": {
+      "title": "PlanRecord",
+      "description": "Structured productivity or study plan.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "horizon": { "type": "string", "enum": ["daily", "weekly", "monthly", "project", "study"] },
+        "goal": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["active", "completed", "archived"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "horizon", "goal", "status", "createdAt", "updatedAt"]
+    },
+    "KnowledgeDocument": {
+      "title": "KnowledgeDocument",
+      "description": "Document metadata stored in the user's Knowledge Vault.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "collectionName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "mimeType": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "collectionName", "title", "mimeType", "tags", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and private inference preferences isolated to owner."
+    },
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/WorkspaceConfig" },
+      "description": "Custom and AI-generated workspace layouts owned by userId."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Chat conversations owned by userId."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages belonging to a user-owned conversation."
+    },
+    "/personas/{personaId}": {
+      "schema": { "$ref": "#/entities/Persona" },
+      "description": "Custom AI personas owned by userId."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/QuizRecord" },
+      "description": "User-scoped quizzes and scores."
+    },
+    "/codeProjects/{projectId}": {
+      "schema": { "$ref": "#/entities/CodeProject" },
+      "description": "User-scoped Code Studio projects."
+    },
+    "/plans/{planId}": {
+      "schema": { "$ref": "#/entities/PlanRecord" },
+      "description": "User-scoped plans and study schedules."
+    },
+    "/knowledgeDocuments/{docId}": {
+      "schema": { "$ref": "#/entities/KnowledgeDocument" },
+      "description": "User-scoped Knowledge Vault documents."
+    }
+  }
+}

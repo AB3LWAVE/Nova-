@@ -1,0 +1,6 @@
+{
+  "name": "NOVA AI Workspace",
+  "description": "Hybrid AI productivity workspace uniting Chat, Quiz, Code, and Plan studios with Firebase AI Logic on-device and cloud inference, Cloud SQL persistence, and Google Workspace integration.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

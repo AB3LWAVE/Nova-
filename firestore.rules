@@ -1,0 +1,364 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Default-deny global catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Entity Validators (Anti-Update-Gap Blueprints)
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'routingMode', 'privacyPreference', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'routingMode', 'privacyPreference', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == request.auth.uid && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && data.routingMode in ['automatic', 'local-first', 'cloud-first']
+        && data.privacyPreference in ['standard', 'local-first', 'strict-local']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWorkspaceConfig(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'isDefault', 'widgets', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'description', 'isDefault', 'widgets', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && (!('description' in data) || (data.description is string && data.description.size() <= 500))
+        && data.isDefault is bool
+        && data.widgets is list && data.widgets.size() <= 16
+        && (data.widgets.size() == 0 || data.widgets[0] is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConversation(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'folder', 'pinned', 'archived', 'modelId', 'personaId', 'messageCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'title', 'folder', 'pinned', 'archived', 'modelId', 'personaId', 'messageCount', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.folder is string && data.folder.size() >= 1 && data.folder.size() <= 64
+        && data.pinned is bool
+        && data.archived is bool
+        && data.modelId is string && data.modelId.size() >= 1 && data.modelId.size() <= 80
+        && data.personaId is string && data.personaId.size() >= 1 && data.personaId.size() <= 80
+        && data.messageCount is int && data.messageCount >= 0 && data.messageCount <= 10000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'userId', 'role', 'content', 'executionSource', 'verificationStatus', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'role', 'content', 'modelId', 'executionSource', 'verificationStatus', 'createdAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.role in ['user', 'assistant', 'system']
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 32000
+        && (!('modelId' in data) || (data.modelId is string && data.modelId.size() <= 80))
+        && data.executionSource in ['on_device', 'in_cloud', 'hybrid_fallback', 'user_input']
+        && data.verificationStatus in ['verified', 'needs_review', 'corrected', 'pending', 'none']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPersona(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'role', 'instructions', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'role', 'instructions', 'preferredModelId', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.role is string && data.role.size() >= 1 && data.role.size() <= 80
+        && data.instructions is string && data.instructions.size() >= 1 && data.instructions.size() <= 4000
+        && (!('preferredModelId' in data) || (data.preferredModelId is string && data.preferredModelId.size() <= 80))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuizRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'subject', 'quizType', 'difficulty', 'totalQuestions', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'title', 'subject', 'quizType', 'difficulty', 'score', 'totalQuestions', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 80
+        && data.quizType is string && data.quizType.size() >= 1 && data.quizType.size() <= 40
+        && data.difficulty is string && data.difficulty.size() >= 1 && data.difficulty.size() <= 40
+        && (!('score' in data) || (data.score is int && data.score >= 0 && data.score <= 100))
+        && data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 100
+        && data.status in ['draft', 'in_progress', 'completed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCodeProject(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'language', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'language', 'summary', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.language is string && data.language.size() >= 1 && data.language.size() <= 40
+        && (!('summary' in data) || (data.summary is string && data.summary.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPlanRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'horizon', 'goal', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'title', 'horizon', 'goal', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.horizon in ['daily', 'weekly', 'monthly', 'project', 'study']
+        && data.goal is string && data.goal.size() >= 1 && data.goal.size() <= 1000
+        && data.status in ['active', 'completed', 'archived']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidKnowledgeDocument(data) {
+      return data.keys().hasAll(['id', 'userId', 'collectionName', 'title', 'mimeType', 'tags', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'collectionName', 'title', 'mimeType', 'tags', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.userId is string && data.userId == request.auth.uid && isValidId(data.userId)
+        && data.collectionName is string && data.collectionName.size() >= 1 && data.collectionName.size() <= 80
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.mimeType is string && data.mimeType.size() >= 1 && data.mimeType.size() <= 80
+        && data.tags is list && data.tags.size() <= 10
+        && (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() <= 40))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 1. Users (PII isolated: list forbidden)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'routingMode', 'privacyPreference', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(userId) && isOwner(userId);
+    }
+
+    // 2. Workspaces
+    match /workspaces/{workspaceId} {
+      allow get: if isValidId(workspaceId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(workspaceId)
+        && isValidWorkspaceConfig(incoming())
+        && incoming().id == workspaceId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(workspaceId)
+        && existing().userId == request.auth.uid
+        && isValidWorkspaceConfig(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'isDefault', 'widgets', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(workspaceId) && existing().userId == request.auth.uid;
+    }
+
+    // 3. Conversations + Messages subcollection
+    match /conversations/{conversationId} {
+      allow get: if isValidId(conversationId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(conversationId)
+        && isValidConversation(incoming())
+        && incoming().id == conversationId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(conversationId)
+        && existing().userId == request.auth.uid
+        && isValidConversation(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'folder', 'pinned', 'archived', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['modelId', 'personaId', 'messageCount', 'updatedAt'])
+        );
+      allow delete: if isVerifiedUser() && isValidId(conversationId) && existing().userId == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow get: if isValidId(conversationId) && isValidId(messageId)
+          && isSignedIn()
+          && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
+        allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedUser()
+          && isValidId(conversationId)
+          && isValidId(messageId)
+          && isValidMessage(incoming())
+          && incoming().id == messageId
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/conversations/$(conversationId))
+          && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
+        allow update: if isVerifiedUser()
+          && isValidId(conversationId)
+          && isValidId(messageId)
+          && existing().userId == request.auth.uid
+          && isValidMessage(incoming())
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'verificationStatus']);
+        allow delete: if isVerifiedUser() && isValidId(conversationId) && isValidId(messageId) && existing().userId == request.auth.uid;
+      }
+    }
+
+    // 4. Custom Personas
+    match /personas/{personaId} {
+      allow get: if isValidId(personaId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(personaId)
+        && isValidPersona(incoming())
+        && incoming().id == personaId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(personaId)
+        && existing().userId == request.auth.uid
+        && isValidPersona(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'instructions', 'preferredModelId', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(personaId) && existing().userId == request.auth.uid;
+    }
+
+    // 5. Quizzes (Terminal state lock when completed)
+    match /quizzes/{quizId} {
+      allow get: if isValidId(quizId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(quizId)
+        && isValidQuizRecord(incoming())
+        && incoming().id == quizId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(quizId)
+        && existing().userId == request.auth.uid
+        && existing().status != 'completed'
+        && isValidQuizRecord(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'score', 'status', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(quizId) && existing().userId == request.auth.uid;
+    }
+
+    // 6. Code Projects
+    match /codeProjects/{projectId} {
+      allow get: if isValidId(projectId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(projectId)
+        && isValidCodeProject(incoming())
+        && incoming().id == projectId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(projectId)
+        && existing().userId == request.auth.uid
+        && isValidCodeProject(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'language', 'summary', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(projectId) && existing().userId == request.auth.uid;
+    }
+
+    // 7. Plans (Terminal state lock when archived)
+    match /plans/{planId} {
+      allow get: if isValidId(planId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(planId)
+        && isValidPlanRecord(incoming())
+        && incoming().id == planId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(planId)
+        && existing().userId == request.auth.uid
+        && existing().status != 'archived'
+        && isValidPlanRecord(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'horizon', 'goal', 'status', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(planId) && existing().userId == request.auth.uid;
+    }
+
+    // 8. Knowledge Documents
+    match /knowledgeDocuments/{docId} {
+      allow get: if isValidId(docId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(docId)
+        && isValidKnowledgeDocument(incoming())
+        && incoming().id == docId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(docId)
+        && existing().userId == request.auth.uid
+        && isValidKnowledgeDocument(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['collectionName', 'title', 'tags', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(docId) && existing().userId == request.auth.uid;
+    }
+  }
+}
